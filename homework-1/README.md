@@ -11,5 +11,5 @@ Commands:
 ## Question 2. Understanding Docker networking and docker-compose
 
 **Solution** (multiple choice):
-* postgres:5433
-* db:5433 
+* postgres:5432
+* db:5432
