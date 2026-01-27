@@ -21,4 +21,40 @@ docker run -it --rm \
   --pg-db=ny_taxi \
   --target-table=yellow_taxi_trips
 
+Run postgres db and pgadmin with docker compose:
+1. Create a file docker-compose with this contents:
+services:
+  db:
+    container_name: postgres
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: 'postgres'
+      POSTGRES_PASSWORD: 'postgres'
+      POSTGRES_DB: 'ny_taxi'
+    ports:
+      - '5433:5432'
+    volumes:
+      - vol-pgdata:/var/lib/postgresql/data
+
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "pgadmin@pgadmin.com"
+      PGADMIN_DEFAULT_PASSWORD: "pgadmin"
+    ports:
+      - "8080:80"
+    volumes:
+      - vol-pgadmin_data:/var/lib/pgadmin
+
+volumes:
+  vol-pgdata:
+    name: vol-pgdata
+  vol-pgadmin_data:
+    name: vol-pgadmin_data
+
+Some important notes:
+- All the containers run with docker compose will run in the same network (usually called "<foldername>_default"), there is no reason to create one.
+- The two containers should talk to each other on internal ports, so pgadmin should use 5432. The host machine should use 5433 because of the post forwarding.
+- Pgadmin should use the either "db" (service name) or "postgres" (container name) to connect to postgres.
 
