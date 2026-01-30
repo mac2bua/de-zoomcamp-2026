@@ -208,3 +208,6 @@ __marimo__/
 
 # Parquet files
 *.parquet
+
+# Others
+/01-docker-terraform/terraform-demo/keys/*
