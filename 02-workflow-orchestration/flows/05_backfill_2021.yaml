@@ -1,0 +1,79 @@
+id: 05_backfill_2021
+namespace: zoomcamp
+description: |
+  Helper flow to backfill the `04_postgres_taxi` flow for 2021 (months 01..07)
+  This flow generates the (taxi, year, month) combinations for 2021-01..2021-07
+  and triggers a POST to the Kestra API to start executions of `04_postgres_taxi`.
+
+inputs:
+  - id: kestra_host
+    type: STRING
+    defaults: "http://localhost:8080"
+    description: "Base URL of Kestra (e.g. http://localhost:8080)"
+
+  - id: kestra_api_key
+    type: STRING
+    description: "(Optional) API key or Authorization header value for Kestra"
+
+  - id: months
+    type: ARRAY
+    itemType: STRING
+    defaults:
+      - "01"
+      - "02"
+      - "03"
+      - "04"
+      - "05"
+      - "06"
+      - "07"
+
+  - id: taxis
+    type: ARRAY
+    itemType: STRING
+    defaults:
+      - yellow
+      - green
+
+tasks:
+  - id: build_combinations
+    type: io.kestra.plugin.scripts.python.Script
+    containerImage: python:3.11-alpine
+    outputFiles:
+      - "*.json"
+    script: |
+      import json
+      months = {{inputs.months}}
+      taxis = {{inputs.taxis}}
+
+      combos = []
+      for taxi in taxis:
+        for m in months:
+          combos.append({"taxi": taxi, "year": "2021", "month": m})
+
+      with open('combos.json', 'w') as f:
+        json.dump(combos, f)
+
+  - id: trigger_kestra_executions
+    type: io.kestra.plugin.scripts.shell.Commands
+    taskRunner:
+      type: io.kestra.plugin.core.runner.Process
+    inputFiles:
+      combos.json: "{{outputs.build_combinations.outputFiles['combos.json']}}"
+    commands:
+      - "set -e"
+      - "echo 'Will trigger the following combos:'"
+      - "cat combos.json"
+      - "for row in $(jq -c '.[]' combos.json); do\
+           taxi=$(echo $row | jq -r .taxi); \
+           year=$(echo $row | jq -r .year); \
+           month=$(echo $row | jq -r .month); \
+           echo 'Triggering -> ' $taxi $year $month; \
+           curl -s -X POST '{{inputs.kestra_host}}/api/v1/executions' \
+             -H 'Content-Type: application/json' \
+             $( [ -n "{{inputs.kestra_api_key}}" ] && echo "-H 'Authorization: {{inputs.kestra_api_key}}'" || true) \
+             -d '{"flowId":"zoomcamp:04_postgres_taxi","inputs":{"taxi":"'$taxi'","year":"'$year'","month":"'$month'"}}' ; \
+           echo; \
+         done"
+
+# Note: The curl endpoint and authentication may need to be adapted to your Kestra deployment.
+# You can instead run the flow manually in Kestra UI or use the UI backfill tool (recommended).
