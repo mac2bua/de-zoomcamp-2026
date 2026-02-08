@@ -1,43 +1,213 @@
 # Module 2 Homework — Backfill 2021 (Green + Yellow Taxi)
 
-This folder contains the files I added to extend the course flows for the Module 2 homework.
+This folder documents the flows I created to ingest 2021 data and provides the verification steps I used to answer the quiz/homework questions.
 
-What I changed
+## Setting up GCP credentials for the GCP-based flows
 
-- Updated `flows/04_postgres_taxi.yaml` to include `2021` in the `year` input values and added a sample schedule trigger with `timezone: "America/New_York"`.
-- Added a helper flow `flows/05_backfill_2021.yaml` that demonstrates how to generate the 2021 (taxi, year, month) combinations and trigger executions for `04_postgres_taxi` using the Kestra API.
-- Added a small verification script `scripts/verify_counts_2021.py` to download the files for 2021 months and print the line counts (useful to validate ingestion results locally before/after running the flows).
+To run flows `08_gcp_taxi.yaml` and related GCP pipelines, follow these steps:
 
-How to use
+### 1. Create a GCP project and service account
 
-1. Backfill using the Kestra UI (recommended)
-   - Open the Kestra UI and navigate to the `zoomcamp:04_postgres_taxi` flow.
-   - Use the **Backfill / Schedule** functionality and set the time range `2021-01-01` → `2021-07-31`.
-   - Select the `taxi` input (yellow or green) and run the backfill for each taxi type (or do two backfills).
-   - Make sure to set the schedule timezone to `America/New_York` when configuring the backfill.
+- Go to [Google Cloud Console](https://console.cloud.google.com/)
+- Create a new project (e.g., `kestra-sandbox-demo`)
+- Under **IAM & Admin** → **Service Accounts**, create a new service account (e.g., `will-zoomcamp`)
+- Grant the service account the following roles:
+  - **BigQuery Admin** — for creating/managing BigQuery datasets and tables
+  - **Storage Admin** — for creating/managing GCS buckets
+- Create a JSON key for the service account and download it locally
 
-2. Trigger via helper flow (script that posts to Kestra API)
-   - Deploy Kestra and ensure the API is reachable (e.g. `http://localhost:8080`).
-   - Run the helper flow `zoomcamp:05_backfill_2021` in the UI with `kestra_host` and optional `kestra_api_key` (or run the flow directly).
-   - The helper flow will POST to the Kestra API endpoint `/api/v1/executions` to start executions of `zoomcamp:04_postgres_taxi` for all months 01..07 and both taxi types.
-   - Note: you may need to adapt the API endpoint or authorization header depending on your Kestra installation.
+### 2. Create the `.env_encoded` file
 
-3. Verify counts locally (optional)
-   - Run the verification script to download the 2021 monthly CSVs from the DataTalksClub release and count rows:
+Follow [Kestra's Google Credentials Guide](https://kestra.io/docs/how-to-guides/google-credentials):
 
-     ```bash
-     python02-workflow-orchestration/scripts/verify_counts_2021.py
-     ```
+1. Base64-encode your JSON service account key:
+   ```bash
+   cat /path/to/your/service-account-key.json | base64
+   ```
 
-Notes & challenge
+2. Create a file named `.env_encoded` in the `02-workflow-orchestration` directory with the following content:
+   ```
+   KESTRA_SECRET_GCP_SERVICE_ACCOUNT=<your-base64-encoded-json>
+   ```
 
-- The ForEach + Subflow challenge can be implemented with a dedicated `ForEach` task that iterates over the generated list and calls the `04_postgres_taxi` flow as a Subflow task. If you prefer doing it that way, I included a helper flow that demonstrates triggering via the Kestra API instead (more portable and doesn't depend on exact in-cluster Subflow plugin names).
+3. Place this file in `/Users/cristian/Repositories/de-zoomcamp-2026/02-workflow-orchestration/.env_encoded`
 
-Files added/changed
+### 3. Update `docker-compose.yaml`
 
-- modified: `flows/04_postgres_taxi.yaml` (added 2021 year selection + schedule example)
-- added: `flows/05_backfill_2021.yaml` (helper flow that posts to Kestra API)
-- added: `homework-2/README.md` (this file)
-- added: `scripts/verify_counts_2021.py` (download + count verification script)
+Add the `env_file` directive to the `kestra` service:
 
-If you'd like, I can also add a short notebook that visualizes the counts and file sizes. Happy to add that next.
+```yaml
+services:
+  kestra:
+    env_file: .env_encoded
+    image: kestra/kestra:v1.1
+    # ... rest of service config
+```
+
+### 4. Enable required GCP APIs
+
+In the GCP Console for your project:
+
+- Go to **APIs & Services** → **Enabled APIs & services**
+- Search for and enable:
+  - **Cloud Storage API**
+  - **BigQuery API**
+
+### 5. Create GCP resources using flow `06_gcp_kv.yaml`
+
+First, update `06_gcp_kv.yaml` with your GCP project details:
+
+```yaml
+id: 06_gcp_kv
+namespace: zoomcamp
+
+tasks:
+  - id: gcp_project_id
+    type: io.kestra.plugin.core.kv.Set
+    key: GCP_PROJECT_ID
+    kvType: STRING
+    value: your-project-id  # ← Use the PROJECT ID, not the project name
+
+  - id: gcp_location
+    type: io.kestra.plugin.core.kv.Set
+    key: GCP_LOCATION
+    kvType: STRING
+    value: europe-west10  # or your preferred region
+
+  - id: gcp_bucket_name
+    type: io.kestra.plugin.core.kv.Set
+    key: GCP_BUCKET_NAME
+    kvType: STRING
+    value: kestra-zoomcamp-your-unique-name  # must be globally unique!
+
+  - id: gcp_dataset
+    type: io.kestra.plugin.core.kv.Set
+    key: GCP_DATASET
+    kvType: STRING
+    value: zoomcamp
+
+  - id: gcp_creds
+    type: io.kestra.plugin.core.kv.Set
+    key: GCP_CREDS
+    kvType: STRING
+    value: "{{secret('GCP_SERVICE_ACCOUNT')}}"
+```
+
+### 6. Rebuild and restart Kestra
+
+```bash
+cd 02-workflow-orchestration
+docker-compose down
+docker-compose up -d --build
+```
+
+Wait ~30 seconds for Kestra to start.
+
+### 7. Run flow `06_gcp_kv.yaml`
+
+- Open Kestra UI at `http://localhost:8080`
+- Navigate to **Flows** → `zoomcamp:06_gcp_kv` and click **Execute**
+- This stores your GCP configuration as key-value pairs in Kestra
+
+### 8. Run flow `07_gcp_setup.yaml`
+
+- Navigate to **Flows** → `zoomcamp:07_gcp_setup` and click **Execute**
+- This creates the GCS bucket and BigQuery dataset
+
+If you get a `403 Forbidden` error, verify:
+- The service account has **Storage Admin** and **BigQuery Admin** roles
+- The **Cloud Storage API** and **BigQuery API** are enabled in your GCP project
+- You used the **project ID** (not the project name) in `06_gcp_kv.yaml`
+
+### Important: Use Project ID, not Project Name
+
+GCP distinguishes between **project name** and **project ID**. The flows require the **project ID**. You can find this in the GCP Console at the top of the page (it looks like `kestra-sandbox-demo-486815`).
+
+---
+
+Files I added
+
+- `homework-2/12_backfill_2021.yaml`: just a copy of `04_postgres_taxi.yaml` with `2021` added to the `year` select and the `purge_files` task commented out so downloaded CSVs remain available after execution.
+- `homework-2/13_backfill_2021_scheduled.yaml` — scheduled flow (same as the scheduled flow in the course) with the `purge_files` task commented out so files remain available for inspection after running/backfilling.
+
+
+How to use these flows
+
+- Manual per-month runs (flow `12_backfill_2021.yaml`):
+   - Open the Kestra UI and run `zoomcamp:12_backfill_2021` manually.
+   - For each month of 2021 (01..07) set inputs `taxi` (yellow/green), `year=2021`, `month=01..07` and execute the flow.
+   - Because `purge_files` is commented, the downloaded CSV will remain available in the execution outputs so I can inspect the uncompressed file and related metadata from the `extract` task outputs.
+
+- Backfill using the scheduled flow (flow `13_backfill_2021_scheduled.yaml`):
+   - Open `zoomcamp:13_backfill_2021_scheduled` in the Kestra UI.
+   - Use the UI Backfill feature and set the time range `2021-01-01` → `2021-07-31`.
+   - Run the backfill for `taxi=yellow` and then for `taxi=green` (or vice versa).
+   - Ensure the schedule timezone is set to `America/New_York` when launching the backfill.
+
+Verification approach (how I validated results)
+
+- File size (Q1): I inspected the execution outputs for the `extract` task in Kestra UI. The execution output contains the downloaded file (for example `yellow_tripdata_2020-12.csv`) and its stored metadata; I used that metadata to read the uncompressed byte size recorded by Kestra for the output file.
+
+- Row counts (Q3, Q4, Q5): After ingestion I queried the target PostgreSQL table to count rows per filename. Example SQL I ran against the `public` tables (the flows write to `public.yellow_tripdata` and `public.green_tripdata`) to compute counts:
+
+```sql
+-- Count rows ingested for a specific file (example)
+SELECT COUNT(*)
+FROM public.yellow_tripdata
+WHERE filename = 'yellow_tripdata_2020-12.csv';
+
+-- Total rows for a year (example)
+SELECT SUM(cnt) FROM (
+   SELECT filename, COUNT(*) AS cnt
+   FROM public.yellow_tripdata
+   WHERE filename LIKE 'yellow_tripdata_2020-%'
+   GROUP BY filename
+) t;
+```
+
+- Variable rendering (Q2): I inspected the flow variables in the Kestra UI and in the flow YAML (`file: "{{inputs.taxi}}_tripdata_{{inputs.year}}-{{inputs.month}}.csv"`) and confirmed the rendered value using the flow execution labels (the flow sets a label with the rendered `file` value).
+
+Homework results (final answers)
+
+Below are the concise answers and a one-line method indicating how each was obtained from the execution artifacts.
+
+- Q1: Uncompressed size of `yellow_tripdata_2020-12.csv` — **128.3 MiB**.
+   - Method: inspected the `extract` task output file metadata in the Kestra execution outputs (uncompressed bytes reported by the execution storage), converted bytes → MiB.
+
+- Q2: Rendered `file` when `taxi=green`, `year=2020`, `month=04` — **green_tripdata_2020-04.csv**.
+   - Method: checked the `file` variable definition and rendered label in the execution.
+
+- Q3: Total rows for Yellow 2020 — **24,648,499**.
+   - Method: `SELECT COUNT(*)` group-sum across `public.yellow_tripdata` rows grouped by filenames `yellow_tripdata_2020-%` after ingesting all months.
+
+- Q4: Total rows for Green 2020 — **1,734,051**.
+   - Method: `SELECT COUNT(*)` group-sum across `public.green_tripdata` rows grouped by filenames `green_tripdata_2020-%` after ingesting all months.
+
+- Q5: Yellow March 2021 rows — **1,925,152**.
+   - Method: `SELECT COUNT(*) FROM public.yellow_tripdata WHERE filename = 'yellow_tripdata_2021-03.csv'` after running the March 2021 ingestion.
+
+- Q6: Configure timezone to New York in Schedule trigger — **Set the `timezone` property to `America/New_York`** in the Schedule trigger configuration.
+
+# My solution
+
+1.  `128.3 MiB`
+
+2. `green_tripdata_2020-04.csv`
+
+3. 
+
+query:
+```
+SELECT COUNT(*)
+FROM public.yellow_tripdata
+WHERE filename LIKE 'yellow_tripdata_2020-%.csv';
+```
+
+4. 
+
+query:
+```
+SELECT COUNT(*)
+FROM public.green_tripdata
+WHERE filename LIKE 'green_tripdata_2020-%.csv';
+```
