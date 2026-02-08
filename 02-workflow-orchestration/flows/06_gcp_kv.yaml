@@ -6,19 +6,19 @@ tasks:
     type: io.kestra.plugin.core.kv.Set
     key: GCP_PROJECT_ID
     kvType: STRING
-    value: kestra-sandbox # TODO replace with your project id
+    value: kestra-sandbox-demo-486815
 
   - id: gcp_location
     type: io.kestra.plugin.core.kv.Set
     key: GCP_LOCATION
     kvType: STRING
-    value: europe-west2
+    value: europe-west10 # Berlin
 
   - id: gcp_bucket_name
     type: io.kestra.plugin.core.kv.Set
     key: GCP_BUCKET_NAME
     kvType: STRING
-    value: your-name-kestra # TODO make sure it's globally unique!
+    value: kestra-zoomcamp-cristian-demo
 
   - id: gcp_dataset
     type: io.kestra.plugin.core.kv.Set

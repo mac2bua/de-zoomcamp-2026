@@ -144,29 +144,6 @@ How to use these flows
    - Run the backfill for `taxi=yellow` and then for `taxi=green` (or vice versa).
    - Ensure the schedule timezone is set to `America/New_York` when launching the backfill.
 
-Verification approach (how I validated results)
-
-- File size (Q1): I inspected the execution outputs for the `extract` task in Kestra UI. The execution output contains the downloaded file (for example `yellow_tripdata_2020-12.csv`) and its stored metadata; I used that metadata to read the uncompressed byte size recorded by Kestra for the output file.
-
-- Row counts (Q3, Q4, Q5): After ingestion I queried the target PostgreSQL table to count rows per filename. Example SQL I ran against the `public` tables (the flows write to `public.yellow_tripdata` and `public.green_tripdata`) to compute counts:
-
-```sql
--- Count rows ingested for a specific file (example)
-SELECT COUNT(*)
-FROM public.yellow_tripdata
-WHERE filename = 'yellow_tripdata_2020-12.csv';
-
--- Total rows for a year (example)
-SELECT SUM(cnt) FROM (
-   SELECT filename, COUNT(*) AS cnt
-   FROM public.yellow_tripdata
-   WHERE filename LIKE 'yellow_tripdata_2020-%'
-   GROUP BY filename
-) t;
-```
-
-- Variable rendering (Q2): I inspected the flow variables in the Kestra UI and in the flow YAML (`file: "{{inputs.taxi}}_tripdata_{{inputs.year}}-{{inputs.month}}.csv"`) and confirmed the rendered value using the flow execution labels (the flow sets a label with the rendered `file` value).
-
 Homework results (final answers)
 
 Below are the concise answers and a one-line method indicating how each was obtained from the execution artifacts.
