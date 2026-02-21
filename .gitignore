@@ -210,3 +210,6 @@ __marimo__/
 *.parquet
 
 .DS_Store
+
+# GCP credentials
+.env_encoded
