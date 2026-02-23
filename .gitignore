@@ -216,3 +216,20 @@ __marimo__/
 
 # GCP credentials
 *.json
+
+# Credentials
+gcs.json
+
+# Data files
+data/
+*.csv
+*.csv.gz
+*.parquet
+fhv_download/
+
+# Data files
+data/
+*.csv
+*.csv.gz
+*.parquet
+fhv_download/
