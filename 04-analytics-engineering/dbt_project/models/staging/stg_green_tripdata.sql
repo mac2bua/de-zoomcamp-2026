@@ -14,7 +14,7 @@ SELECT
     CAST(mta_tax AS numeric) as mta_tax,
     CAST(tip_amount AS numeric) as tip_amount,
     CAST(tolls_amount AS numeric) as tolls_amount,
-    CAST(ehail_fee AS numeric) as ehail_fee,
+    COALESCE(CAST(ehail_fee AS numeric), 0) as ehail_fee,
     CAST(improvement_surcharge AS numeric) as improvement_surcharge,
     CAST(total_amount AS numeric) as total_amount,
     CAST(payment_type AS numeric) as payment_type
