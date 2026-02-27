@@ -3,7 +3,7 @@ sources:
     description: Raw taxi trip data from NYC TLC
     database: |
       {%- if target.type == 'bigquery' -%}
-        {{ env_var('GCP_PROJECT_ID', 'please-add-your-gcp-project-id-here') }}
+        {{ env_var('GCP_PROJECT_ID', 'analytics-eng-with-bq-and-dbt') }}
       {%- else -%}
         taxi_rides_ny
       {%- endif -%}
@@ -55,7 +55,6 @@ sources:
             description: Trip type (1=Street-hail, 2=Dispatch)
           - name: ehail_fee
             description: E-hail fee
-
         config:
           loaded_at_field: lpep_pickup_datetime
       - name: yellow_tripdata
@@ -97,6 +96,39 @@ sources:
             description: Total amount charged
         config:
           loaded_at_field: tpep_pickup_datetime
+      
+      - name: fhv_tripdata
+        description: For-Hire Vehicle (FHV) trip data for 2019.
+        columns:
+          - name: dispatching_base_num
+            description: The TLC Base License Number of the base that dispatched the trip.
+          - name: pickup_datetime
+            description: The date and time of the trip pick-up.
+          - name: dropOff_datetime
+            description: The date and time of the trip dropoff.
+          - name: PUlocationID
+            description: TLC Taxi Zone in which the trip began.
+          - name: DOlocationID
+            description: TLC Taxi Zone in which the trip ended.
+          - name: SR_Flag
+            description: |
+              Indicates if the trip was a part of a shared ride chain offered by a High
+              Volume FHV company (e.g. Uber Pool, Lyft Line). For shared trips, the value
+              is 1. For non-shared rides, this field is null.
+              NOTE: For most High Volume FHV companies, only shared rides that were
+              requested AND matched to another shared-ride request over the course of
+              the journey are flagged. However, Lyft (base license numbers B02510 +
+              B02844) also flags rides for which a shared ride was requested but another
+              passenger was not successfully matched to share the trip—therefore, trips
+              records with SR_Flag=1 from those two bases could indicate EITHER a first
+              trip in a shared trip chain OR a trip for which a shared ride was requested but
+              never matched. Users should anticipate an overcount of successfully shared
+              trips completed by Lyft.
+          - name: Affiliated_base_number
+            description: |
+              Base number of the base with which the vehicle is affiliated. This
+              must be provided even if the affiliated base is the same as the
+              dispatching base.  
     config:
       freshness:
         warn_after: {count: 24, period: hour}
