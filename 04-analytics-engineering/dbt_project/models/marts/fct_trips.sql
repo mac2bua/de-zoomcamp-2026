@@ -4,7 +4,7 @@
 -- This is a classic star schema design: fact table (trips) joined to dimension table (zones)
 -- Materialized incrementally to handle large datasets efficiently
 
-WITH trips_with_payment AS (
+WITH trips AS (
     SELECT
         -- Create unique trip_id from key trip attributes
         CONCAT(
@@ -17,26 +17,16 @@ WITH trips_with_payment AS (
             CAST(COALESCE(trip_type, 0) AS STRING), '-',
             CAST(total_amount AS STRING)
         ) AS trip_id,
-        -- Trip identifiers
         vendor_id,
-        'Green' as service_type,  -- Will be updated when we add yellow trips properly
         rate_code_id,
-        
-        -- Location details
         pickup_location_id,
         dropoff_location_id,
-        
-        -- Trip timing
         pickup_datetime,
         dropoff_datetime,
         store_and_fwd_flag,
-        
-        -- Trip metrics
         passenger_count,
         trip_distance,
         trip_type,
-        
-        -- Payment breakdown
         fare_amount,
         extra,
         mta_tax,
@@ -47,12 +37,55 @@ WITH trips_with_payment AS (
         total_amount,
         payment_type
     FROM {{ ref('int_trips_unioned') }}
+),
+
+trips_with_payment AS (
+    SELECT 
+        t.*,
+        p.payment_description
+    FROM trips t
+    LEFT JOIN {{ ref('dim_payment_types') }} p 
+        ON t.payment_type = p.payment_type
+),
+
+deduped AS (
+    -- Remove exact duplicates, keeping one record per trip_id
+    SELECT *,
+        ROW_NUMBER() OVER (PARTITION BY trip_id) AS rn
+    FROM trips_with_payment
+),
+
+trips_base AS (
+    SELECT 
+        trip_id,
+        vendor_id,
+        rate_code_id,
+        pickup_location_id,
+        dropoff_location_id,
+        pickup_datetime,
+        dropoff_datetime,
+        store_and_fwd_flag,
+        passenger_count,
+        trip_distance,
+        trip_type,
+        fare_amount,
+        extra,
+        mta_tax,
+        tip_amount,
+        tolls_amount,
+        ehail_fee,
+        improvement_surcharge,
+        total_amount,
+        payment_type,
+        payment_description
+    FROM deduped
+    WHERE rn = 1
 )
 
 SELECT
     t.trip_id,
     t.vendor_id,
-    t.service_type,
+    'Green' as service_type,
     t.rate_code_id,
     
     -- Location details (enriched with human-readable zone names from dimension)
@@ -84,14 +117,13 @@ SELECT
     t.improvement_surcharge,
     t.total_amount,
     t.payment_type,
-    p.payment_description as payment_type_description
+    t.payment_description as payment_type_description
 
-FROM trips_with_payment t
+FROM trips_base t
 
 -- LEFT JOIN preserves all trips even if zone information is missing or unknown
 LEFT JOIN {{ ref('dim_zones') }} as pz ON t.pickup_location_id = pz.location_id
 LEFT JOIN {{ ref('dim_zones') }} as dz ON t.dropoff_location_id = dz.location_id
-LEFT JOIN {{ ref('dim_payment_types') }} as p ON t.payment_type = p.payment_type
 
 {% if is_incremental() %}
     -- Only process new trips based on pickup datetime
