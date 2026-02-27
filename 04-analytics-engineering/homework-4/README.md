@@ -55,7 +55,10 @@
 
 **Q1 - dbt Lineage and Execution:**
 Which dbt model(s) will be executed when running `dbt build --select int_trips_unioned`?
-- Answer: `int_trips_unioned` only
+- Answer: `int_trips_unioned` only. 
+   - Build upstream models too with `dbt build --select +int_trips_unioned`
+   - Build downstream models too with `dbt build --select +int_trips_unioned`
+   - Build upstream and downstream models too with `dbt build --select +int_trips_unioned+`
 
 **Q2 - dbt Tests:**
 What will happen when running `dbt build --select stg_strip_unioned`?
