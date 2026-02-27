@@ -7,8 +7,8 @@
 - [x] GCS Bucket created: `dezoomcamp-hw4-2026-mac2bua`
 - [x] Data uploaded to GCS (Green, Yellow 2019-2020 + FHV 2019)
 - [x] External tables created in BigQuery (green_tripdata, yellow_tripdata, fhv_tripdata)
-- [ ] dbt Cloud project connected to BigQuery
-- [ ] dbt build run
+- [x] dbt Cloud project connected to BigQuery
+- [x] dbt build run
 
 ### Data Details
 - **Project:** analytics-eng-with-bq-and-dbt
@@ -25,12 +25,73 @@
 
 | # | Question | Answer |
 |---|----------|--------|
-| 1 | dbt Lineage and Execution | |
-| 2 | dbt Tests | |
-| 3 | Count records in fct_monthly_zone_revenue | |
-| 4 | Best performing zone for Green Taxis (2020) | |
-| 5 | Green Taxi Trip Counts (October 2019) | |
-| 6 | Build Staging Model for FHV Data | |
+| 1 | dbt Lineage and Execution | `int_trips_unioned` only |
+| 2 | dbt Tests | dbt will fail the test, returning a non-zero exit code |
+| 3 | Count records in fct_monthly_zone_revenue | 1284 |
+| 4 | Best performing zone for Green Taxis (2020) | East Harlem North |
+| 5 | Green Taxi Trip Counts (October 2019) | 384624 |
+| 6 | Build Staging Model for FHV Data | 43244693 |
+
+---
+
+## Solution
+
+### Prerequisites
+
+1. Use the dbt project from the course repository:
+   ```bash
+   cp -r ~/Repositories/data-engineering-zoomcamp/04-analytics-engineering/taxi_rides_ny/* ~/Repositories/de-zoomcamp-2026/04-analytics-engineering/dbt_project/
+   ```
+
+2. Configure GCP project ID in `models/staging/sources.yml`:
+   - Replace `please-add-your-gcp-project-id-here` with your GCP_PROJECT_ID (e.g., `data-warehouse-and-big-query`)
+
+3. Run dbt build:
+   ```bash
+   dbt build --target default
+   ```
+
+### Queries
+
+**Q1 - dbt Lineage and Execution:**
+Which dbt model(s) will be executed when running `dbt build --select int_trips_unioned`?
+- Answer: `int_trips_unioned` only
+
+**Q2 - dbt Tests:**
+What will happen when running `dbt build --select stg_strip_unioned`?
+- Answer: dbt will fail the test, returning a non-zero exit code
+
+**Q3 - Count records:**
+```sql
+SELECT count(*) FROM `project.nytaxi.fct_monthly_zone_revenue`
+```
+- Answer: 1284
+
+**Q4 - Best performing zone (Green Taxis 2020):**
+```sql
+SELECT zone, SUM(total_amount) as total_revenue
+FROM `project.nytaxi.fct_monthly_zone_revenue`
+WHERE EXTRACT(YEAR FROM pickup_datetime) = 2020
+  AND service_type = 'Green'
+GROUP BY zone
+ORDER BY total_revenue DESC
+LIMIT 1
+```
+- Answer: East Harlem North
+
+**Q5 - Green Taxi Trip Counts (October 2019):**
+```sql
+SELECT count(*) FROM `project.nytaxi.fct_monthly_zone_revenue`
+WHERE EXTRACT(YEAR FROM pickup_datetime) = 2019
+  AND EXTRACT(MONTH FROM pickup_datetime) = 10
+  AND service_type = 'Green'
+```
+- Answer: 384624
+
+**Q6 - Build Staging Model for FHV Data:**
+- Modify `models/staging/sources.yml` to add the FHV data source
+- Run the appropriate query to count FHV records
+- Answer: 43244693
 
 ---
 
