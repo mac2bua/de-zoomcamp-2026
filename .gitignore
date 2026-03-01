@@ -241,4 +241,4 @@ logs/*.log
 
 *.py[cod]taxi.db
 
-*.py[cod]
+*.py[cod]taxi.db

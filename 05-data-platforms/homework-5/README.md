@@ -8,11 +8,11 @@
 - [x] Default template initialized (`my-first-pipeline`)
 - [x] Zoomcamp template in `zoomcamp/` folder
 - [x] DuckDB connection configured
-- [x] Pipeline assets created (trips.py, staging trips.sql, reports trips.sql)
+- [x] Pipeline assets created
 
 ---
 
-## Quiz Answers
+## Quiz Answers (ALL COMPLETE)
 
 | # | Question | Answer |
 |---|----------|--------|
@@ -21,8 +21,8 @@
 | 3 | Pipeline Variables | `bruin run --var 'taxi_types=["yellow"]'` |
 | 4 | Running with Dependencies | `bruin run ingestion/trips.py --downstream` |
 | 5 | Quality Checks | `name: not_null` |
-| 6 | Lineage and Dependencies | `bruin graph` |
-| 7 | First-Time Run | |
+| 6 | Lineage and Dependencies | `bruin lineage` |
+| 7 | First-Time Run | `--full-refresh` |
 
 ---
 
@@ -43,11 +43,14 @@
 ### Q5 - Quality Checks
 - `not_null` check ensures a column has no NULL values
 
-### Q6 - Lineage and Dependencies
-- `bruin graph` shows the dependency visualization
+### Q6 - Lineage
+- `bruin lineage` shows asset dependency graph
+
+### Q7 - First-Time Run
+- `--full-refresh` truncates and rebuilds tables from scratch
 
 ---
 
-## Files in This Folder
-- `homework.md` - Original homework questions
-- `README.md` - This progress file
+## Submission
+
+Form: https://courses.datatalks.club/de-zoomcamp-2026/homework/hw5
