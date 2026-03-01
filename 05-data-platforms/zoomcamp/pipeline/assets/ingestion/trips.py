@@ -49,6 +49,7 @@ columns:
 @bruin"""
 
 import os
+import io
 import pandas as pd
 import requests
 from datetime import datetime
@@ -90,9 +91,15 @@ def materialize():
             try:
                 response = requests.get(url, timeout=30)
                 if response.status_code == 200:
-                    # Read parquet directly from bytes
-                    df = pd.read_parquet(pd.io.common.get_filepath_or_buffer(url))
+                    # Read parquet directly from bytes using pyarrow
+                    df = pd.read_parquet(io.BytesIO(response.content))
+                    
+                    # Add fleet_type
                     df['fleet_type'] = taxi_type
+                    
+                    # Add unique trip_id (the parquet files don't have one)
+                    df['trip_id'] = range(1, len(df) + 1)
+                    
                     all_data.append(df)
                 else:
                     print(f"File not found: {url}")
@@ -115,7 +122,7 @@ def materialize():
     else:
         # Return empty DataFrame with expected schema
         return pd.DataFrame(columns=[
-            'vendor_id', 'pickup_datetime', 'dropoff_datetime',
+            'trip_id', 'vendor_id', 'pickup_datetime', 'dropoff_datetime',
             'passenger_count', 'trip_distance', 'ratecode_id',
             'store_and_fwd_flag', 'pickup_location_id', 'dropoff_location_id',
             'fleet_type', 'extracted_at'
