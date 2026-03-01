@@ -233,3 +233,8 @@ data/
 *.csv.gz
 *.parquet
 fhv_download/
+
+.bruin.yml
+logs/runs
+logs/*.log
+*.py[cod]duckdb.db
