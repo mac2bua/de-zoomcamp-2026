@@ -1,72 +1,122 @@
 """@bruin
 
-# TODO: Set the asset name (recommended pattern: schema.asset_name).
-# - Convention in this module: use an `ingestion.` schema for raw ingestion tables.
-name: TODO_SET_ASSET_NAME
+name: ingestion.trips
 
-# TODO: Set the asset type.
-# Docs: https://getbruin.com/docs/bruin/assets/python
 type: python
-
-# TODO: Pick a Python image version (Bruin runs Python in isolated environments).
-# Example: python:3.11
-image: TODO_SET_PYTHON_IMAGE
-
-# TODO: Set the connection.
+image: python:3.11
 connection: duckdb-default
 
-# TODO: Choose materialization (optional, but recommended).
-# Bruin feature: Python materialization lets you return a DataFrame (or list[dict]) and Bruin loads it into your destination.
-# This is usually the easiest way to build ingestion assets in Bruin.
-# Alternative (advanced): you can skip Bruin Python materialization and write a "plain" Python asset that manually writes
-# into DuckDB (or another destination) using your own client library and SQL. In that case:
-# - you typically omit the `materialization:` block
-# - you do NOT need a `materialize()` function; you just run Python code
-# Docs: https://getbruin.com/docs/bruin/assets/python#materialization
 materialization:
-  # TODO: choose `table` or `view` (ingestion generally should be a table)
   type: table
-  # TODO: pick a strategy.
-  # suggested strategy: append
-  strategy: TODO
+  strategy: append
 
-# TODO: Define output columns (names + types) for metadata, lineage, and quality checks.
-# Tip: mark stable identifiers as `primary_key: true` if you plan to use `merge` later.
-# Docs: https://getbruin.com/docs/bruin/assets/columns
 columns:
-  - name: TODO_col1
-    type: TODO_type
-    description: TODO
+  - name: trip_id
+    type: integer
+    description: Unique identifier for each trip record
+    primary_key: true
+  - name: vendor_id
+    type: string
+    description: Identifier for the vendor (e.g. 'CMTV' for Creative Mobile)
+  - name: pickup_datetime
+    type: timestamp
+    description: Timestamp when the taxi was picked up
+  - name: dropoff_datetime
+    type: timestamp
+    description: Timestamp when the taxi was dropped off
+  - name: passenger_count
+    type: integer
+    description: Number of passengers in the taxi at pickup
+  - name: trip_distance
+    type: float
+    description: Distance traveled during the trip
+  - name: ratecode_id
+    type: string
+    description: Rate code identifier (e.g. '1' for Standard rate)
+  - name: store_and_fwd_flag
+    type: string
+    description: Flag indicating whether the trip was stored and forwarded
+  - name: pickup_location_id
+    type: integer
+    description: Identifier for the pickup location
+  - name: dropoff_location_id
+    type: integer
+    description: Identifier for the dropoff location
+  - name: fleet_type
+    type: string
+    description: Type of taxi fleet (e.g. 'yellow', 'green')
 
 @bruin"""
 
-# TODO: Add imports needed for your ingestion (e.g., pandas, requests).
-# - Put dependencies in the nearest `requirements.txt` (this template has one at the pipeline root).
-# Docs: https://getbruin.com/docs/bruin/assets/python
+import os
+import pandas as pd
+import requests
+from datetime import datetime
+import json
 
 
-# TODO: Only implement `materialize()` if you are using Bruin Python materialization.
-# If you choose the manual-write approach (no `materialization:` block), remove this function and implement ingestion
-# as a standard Python script instead.
 def materialize():
-    """
-    TODO: Implement ingestion using Bruin runtime context.
-
-    Required Bruin concepts to use here:
-    - Built-in date window variables:
-      - BRUIN_START_DATE / BRUIN_END_DATE (YYYY-MM-DD)
-      - BRUIN_START_DATETIME / BRUIN_END_DATETIME (ISO datetime)
-      Docs: https://getbruin.com/docs/bruin/assets/python#environment-variables
-    - Pipeline variables:
-      - Read JSON from BRUIN_VARS, e.g. `taxi_types`
-      Docs: https://getbruin.com/docs/bruin/getting-started/pipeline-variables
-
-    Design TODOs (keep logic minimal, focus on architecture):
-    - Use start/end dates + `taxi_types` to generate a list of source endpoints for the run window.
-    - Fetch data for each endpoint, parse into DataFrames, and concatenate.
-    - Add a column like `extracted_at` for lineage/debugging (timestamp of extraction).
-    - Prefer append-only in ingestion; handle duplicates in staging.
-    """
-    # return final_dataframe
-
-
+    # Get runtime context from environment variables
+    start_date = os.environ.get('BRUIN_START_DATE', '2022-01-01')
+    end_date = os.environ.get('BRUIN_END_DATE', '2022-01-31')
+    
+    # Get pipeline variables
+    bruin_vars = os.environ.get('BRUIN_VARS', '{}')
+    variables = json.loads(bruin_vars)
+    taxi_types = variables.get('taxi_types', ['yellow'])
+    
+    # NYC Taxi data URL base
+    base_url = 'https://d37ci6vzurychx.cloudfront.net/trip-data/'
+    
+    all_data = []
+    
+    for taxi_type in taxi_types:
+        # Generate URLs for each month in the range
+        start_year = int(start_date[:4])
+        start_month = int(start_date[5:7])
+        end_year = int(end_date[:4])
+        end_month = int(end_date[5:7])
+        
+        year = start_year
+        month = start_month
+        
+        while (year < end_year) or (year == end_year and month <= end_month):
+            # Format: yellow_tripdata_2022-01.parquet
+            filename = f"{taxi_type}_tripdata_{year}-{month:02d}.parquet"
+            url = f"{base_url}{filename}"
+            
+            print(f"Fetching: {url}")
+            
+            try:
+                response = requests.get(url, timeout=30)
+                if response.status_code == 200:
+                    # Read parquet directly from bytes
+                    df = pd.read_parquet(pd.io.common.get_filepath_or_buffer(url))
+                    df['fleet_type'] = taxi_type
+                    all_data.append(df)
+                else:
+                    print(f"File not found: {url}")
+            except Exception as e:
+                print(f"Error fetching {url}: {e}")
+            
+            # Move to next month
+            month += 1
+            if month > 12:
+                month = 1
+                year += 1
+    
+    if all_data:
+        final_df = pd.concat(all_data, ignore_index=True)
+        
+        # Add extracted_at timestamp
+        final_df['extracted_at'] = datetime.now()
+        
+        return final_df
+    else:
+        # Return empty DataFrame with expected schema
+        return pd.DataFrame(columns=[
+            'vendor_id', 'pickup_datetime', 'dropoff_datetime',
+            'passenger_count', 'trip_distance', 'ratecode_id',
+            'store_and_fwd_flag', 'pickup_location_id', 'dropoff_location_id',
+            'fleet_type', 'extracted_at'
+        ])
