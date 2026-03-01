@@ -1,0 +1,9 @@
+# Local DuckDB connection for development
+default_environment: default
+
+environments:
+  default:
+    connections:
+      duckdb:
+        - name: duckdb-default
+          path: taxi.db
