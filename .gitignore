@@ -238,3 +238,5 @@ fhv_download/
 logs/runs
 logs/*.log
 *.py[cod]duckdb.db
+
+*.py[cod]
