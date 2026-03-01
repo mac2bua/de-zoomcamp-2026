@@ -14,6 +14,7 @@
 - `bruin build .` - Build pipeline
 - `bruin run .` - Run pipeline
 - `bruin lineage .` - View dependencies
+- `bruin run . --var 'taxi_types=["yellow"]'` - Override variable
 
 ---
 
@@ -21,9 +22,9 @@
 
 | # | Question | Answer |
 |---|----------|--------|
-| 1 | Bruin Pipeline Structure | |
-| 2 | Materialization Strategies | |
-| 3 | Pipeline Variables | |
+| 1 | Bruin Pipeline Structure | `.bruin.yml` and `pipeline/` with `pipeline.yml` and `assets/` |
+| 2 | Materialization Strategies | `time_interval` |
+| 3 | Pipeline Variables | `bruin run --var 'taxi_types=["yellow"]'` |
 | 4 | Running with Dependencies | |
 | 5 | Quality Checks | |
 | 6 | Lineage and Dependencies | |
@@ -33,25 +34,24 @@
 
 ## Learning Notes
 
-### Key Concepts Learned
+### Q1 - Bruin Project Structure
+- Required: `.bruin.yml` in root, `pipeline.yml` in `pipeline/`, `assets/` next to `pipeline.yml`
+- `.bruin.yml` stays local (contains secrets)
+- `pipeline.yml` defines schedule, variables, default connections
 
-1. **Bruin Project Structure**
-   - Required: `.bruin.yml`, `pipeline.yml`, `assets/`
-   - `.bruin.yml` stays local (contains secrets)
-   - `pipeline.yml` defines schedule, variables, default connections
+### Q2 - Materialization Strategies
+- `append` - add new rows only
+- `replace` - truncate and rebuild entire table
+- `time_interval` - delete and re-insert for a time window
+- `view` - virtual table
 
-2. **Materialization Strategies**
-   - `append` - add new rows only
-   - `replace` - truncate and rebuild
-   - `time_interval` - incremental by time column
-   - `view` - virtual table
+### Q3 - Pipeline Variables
+- Use `--var` flag with JSON syntax
+- Array: `'taxi_types=["yellow"]'`
+- Tested with: `bruin run . --var 'taxi_types=["yellow"]'`
 
-3. **Commands**
-   - `bruin validate` - check syntax
-   - `bruin run` - execute pipeline
-   - `bruin lineage` - show dependency graph
-   - `--downstream` - run asset + dependents
-   - `--full-refresh` - rebuild from scratch
+### Q4 - Running with Dependencies
+- Use `--downstream` flag to run asset + all dependents
 
 ---
 
