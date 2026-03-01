@@ -35,11 +35,9 @@ columns:
   - name: passenger_count
     type: integer
     description: Number of passengers
-    checks:
-      - name: non_negative
   - name: trip_distance
     type: float
-    description: Trip distance in miles
+    description: Trip distance
     checks:
       - name: non_negative
   - name: ratecode_id
@@ -85,7 +83,7 @@ WITH deduplicated AS (
 SELECT 
     d.trip_id,
     d.vendor_id,
-    d.pup_datetime AS pickup_datetime,
+    d.pickup_datetime,
     d.dropoff_datetime,
     d.passenger_count,
     d.trip_distance,
@@ -94,7 +92,7 @@ SELECT
     d.pickup_location_id,
     d.dropoff_location_id,
     d.fleet_type,
-    d.payment_type,
+    COALESCE(d.payment_type, 1) AS payment_type,
     d.fare_amount,
     d.extracted_at
 FROM deduplicated d

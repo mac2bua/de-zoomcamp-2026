@@ -8,12 +8,7 @@
 - [x] Default template initialized (`my-first-pipeline`)
 - [x] Zoomcamp template in `zoomcamp/` folder
 - [x] DuckDB connection configured
-- [x] Pipeline assets created and validated
-
-### Pipeline Run Status
-- ✅ Payment lookup loaded
-- ⚠️ Trips ingestion - fixed parquet fetch issue
-- Ready to test
+- [x] Pipeline assets created (trips.py, staging trips.sql, reports trips.sql)
 
 ---
 
@@ -26,7 +21,7 @@
 | 3 | Pipeline Variables | `bruin run --var 'taxi_types=["yellow"]'` |
 | 4 | Running with Dependencies | `bruin run ingestion/trips.py --downstream` |
 | 5 | Quality Checks | `name: not_null` |
-| 6 | Lineage and Dependencies | |
+| 6 | Lineage and Dependencies | `bruin graph` |
 | 7 | First-Time Run | |
 
 ---
@@ -35,7 +30,6 @@
 
 ### Q1 - Bruin Project Structure
 - Required: `.bruin.yml` in root, `pipeline.yml` in `pipeline/`, `assets/` next to `pipeline.yml`
-- `.bruin.yml` stays local (contains secrets)
 
 ### Q2 - Materialization Strategies
 - `time_interval` - delete and re-insert for a time window
@@ -48,6 +42,9 @@
 
 ### Q5 - Quality Checks
 - `not_null` check ensures a column has no NULL values
+
+### Q6 - Lineage and Dependencies
+- `bruin graph` shows the dependency visualization
 
 ---
 

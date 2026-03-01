@@ -240,3 +240,5 @@ logs/*.log
 *.py[cod]duckdb.db
 
 *.py[cod]taxi.db
+
+*.py[cod]
