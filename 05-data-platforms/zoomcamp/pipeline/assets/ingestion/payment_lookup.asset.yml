@@ -1,0 +1,23 @@
+# Seed Asset: Load a local CSV file as a lookup table
+
+name: ingestion.payment_lookup
+
+type: duckdb.seed
+connection: duckdb-default
+
+parameters:
+  path: payment_lookup.csv
+
+columns:
+  - name: payment_type_id
+    type: integer
+    description: Payment type ID from TLC
+    primary_key: true
+    checks:
+      - name: not_null
+      - name: unique
+  - name: payment_type_name
+    type: string
+    description: Payment type name
+    checks:
+      - name: not_null
