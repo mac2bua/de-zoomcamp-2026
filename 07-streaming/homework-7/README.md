@@ -1,9 +1,5 @@
 # Homework 7 - Streaming
 
-**Student**: Cristian Martinez  
-**Course**: Data Engineering Zoomcamp 2026  
-**Status**: In Progress (Q1-Q3 Complete, Q4-Q6 Pending)
-
 ---
 
 ## ✅ My Answers
