@@ -10,6 +10,7 @@ def create_events_source_kafka(t_env):
             DOLocationID INTEGER,
             trip_distance DOUBLE,
             total_amount DOUBLE,
+            tip_amount DOUBLE,
             lpep_pickup_datetime VARCHAR,
             event_timestamp AS TO_TIMESTAMP(lpep_pickup_datetime, 'yyyy-MM-dd HH:mm:ss'),
             WATERMARK FOR event_timestamp AS event_timestamp - INTERVAL '5' SECOND
@@ -26,15 +27,14 @@ def create_events_source_kafka(t_env):
     return table_name
 
 
-def create_events_aggregated_sink(t_env):
-    table_name = 'processed_events_aggregated'
+def create_tip_sink(t_env):
+    table_name = 'tip_results'
     sink_ddl = f"""
         CREATE TABLE {table_name} (
             window_start TIMESTAMP(3),
-            PULocationID INT,
-            num_trips BIGINT,
-            total_revenue DOUBLE,
-            PRIMARY KEY (window_start, PULocationID) NOT ENFORCED
+            window_end TIMESTAMP(3),
+            total_tips DOUBLE,
+            PRIMARY KEY (window_start) NOT ENFORCED
         ) WITH (
             'connector' = 'jdbc',
             'url' = 'jdbc:postgresql://postgres:5432/postgres',
@@ -48,30 +48,28 @@ def create_events_aggregated_sink(t_env):
     return table_name
 
 
-def log_aggregation():
+def tip_aggregation():
     env = StreamExecutionEnvironment.get_execution_environment()
     env.enable_checkpointing(10 * 1000)
-    env.set_parallelism(1) # set parallelism to 1 since we have only 1 partition in the topic
+    env.set_parallelism(1)
 
     settings = EnvironmentSettings.new_instance().in_streaming_mode().build()
     t_env = StreamTableEnvironment.create(env, environment_settings=settings)
 
     try:
         source_table = create_events_source_kafka(t_env)
-        aggregated_table = create_events_aggregated_sink(t_env)
+        tip_table = create_tip_sink(t_env)
 
         t_env.execute_sql(f"""
-        INSERT INTO {aggregated_table}
+        INSERT INTO {tip_table}
         SELECT
             window_start,
-            PULocationID,
-            COUNT(*) AS num_trips,
-            SUM(total_amount) AS total_revenue
+            window_end,
+            SUM(tip_amount) AS total_tips
         FROM TABLE(
             TUMBLE(TABLE {source_table}, DESCRIPTOR(event_timestamp), INTERVAL '1' HOUR)
         )
-        GROUP BY window_start, PULocationID;
-
+        GROUP BY window_start, window_end;
         """).wait()
 
     except Exception as e:
@@ -79,4 +77,4 @@ def log_aggregation():
 
 
 if __name__ == '__main__':
-    log_aggregation()
+    tip_aggregation()

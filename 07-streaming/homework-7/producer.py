@@ -13,12 +13,14 @@ columns = [
     'DOLocationID',
     'trip_distance',
     'total_amount',
+    'tip_amount',
     'lpep_pickup_datetime'
 ]
 df = df[columns]
 
 # Convert datetime columns to strings
 df['lpep_pickup_datetime'] = df['lpep_pickup_datetime'].astype(str)
+
 # Create Kafka producer
 producer = KafkaProducer(
     bootstrap_servers=['localhost:9092'],

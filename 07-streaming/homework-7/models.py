@@ -10,6 +10,7 @@ class Ride:
     DOLocationID: int
     trip_distance: float
     total_amount: float
+    tip_amount: float
     lpep_pickup_datetime: str
 
 
@@ -19,6 +20,7 @@ def ride_from_row(row):
         DOLocationID=int(row['DOLocationID']),
         trip_distance=float(row['trip_distance']),
         total_amount=float(row['total_amount']),
+        tip_amount=float(row['tip_amount']),
         # lpep_pickup_datetime is a str and needs to be converted to a timestamp in milliseconds
         lpep_pickup_datetime=str(row['lpep_pickup_datetime']),
     )
