@@ -47,7 +47,7 @@ def make_ride(delay_seconds=0):
         DOLocationID=random.choice(DROPOFF_LOCATIONS),
         trip_distance=round(random.uniform(0.5, 20.0), 2),
         total_amount=round(random.uniform(5.0, 100.0), 2),
-        tpep_pickup_datetime=now_ms,
+        lpep_pickup_datetime=now_ms,
     )
 
 
@@ -61,7 +61,7 @@ producer = KafkaProducer(
     value_serializer=ride_serializer,
 )
 
-topic_name = 'rides'
+topic_name = 'green-trips'
 count = 0
 
 print("Sending events (Ctrl+C to stop)...")

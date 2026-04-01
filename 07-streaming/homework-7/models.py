@@ -10,7 +10,7 @@ class Ride:
     DOLocationID: int
     trip_distance: float
     total_amount: float
-    tpep_pickup_datetime: int  # epoch milliseconds
+    lpep_pickup_datetime: str
 
 
 def ride_from_row(row):
@@ -19,7 +19,8 @@ def ride_from_row(row):
         DOLocationID=int(row['DOLocationID']),
         trip_distance=float(row['trip_distance']),
         total_amount=float(row['total_amount']),
-        tpep_pickup_datetime=int(row['tpep_pickup_datetime'].timestamp() * 1000),
+        # lpep_pickup_datetime is a str and needs to be converted to a timestamp in milliseconds
+        lpep_pickup_datetime=str(row['lpep_pickup_datetime']),
     )
 
 
